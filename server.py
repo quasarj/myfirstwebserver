@@ -5,7 +5,7 @@ import time
 import socket
 
 host = '127.0.0.1'
-port = 8080
+port = 8081
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind((host, port))
@@ -18,9 +18,31 @@ def idle_work():
     # print("Doing idle work (well, pretending)")
     time.sleep(0.1) # don't want to tight loop
 
-def handle_client_msg(socket, data):
+def generate_headers():
+    return b"""HTTP/1.1 200 OK
+Server: MyFirstWebserver/0.1
+Content-Type: text/html; charset=UTF-8
+Connection: close
+
+
+"""
+
+def dispatch_error(socket, method, headers):
+    socket.send(b"HTTP/1.1 404 Not Found")
+
+def dispatch_get(socket, method, headers):
+    if b'favicon' in method:
+        print("Rejecting request for a favicon")
+        dispatch_error()
+        return
+
+    _, resource, *rest = method.split()
+
+    print(resource)
+
+
+def test(socket, headers):
     hvals = {}
-    headers = data.split(b'\r\n')
     for h in headers:
         if b':' in h:
             h_name, h_data, *rest = h.split(b':')
@@ -29,11 +51,24 @@ def handle_client_msg(socket, data):
         elif len(h) != 0:
             print(h)
 
+    # setup a real http response
+    socket.send(generate_headers())
     socket.send(b"<h1>My First Webserver</h1>")
     socket.send(b"<ol>")
     for name, val in hvals.items():
         socket.send(b"<li>" + b' - '.join([name, val]) + b'</li>\n')
     socket.send(b"</ol>")
+
+
+def handle_client_msg(socket, data):
+    headers = data.split(b'\r\n')
+    method = headers.pop(0)
+
+    if method.startswith(b'GET'):
+        dispatch_get(socket, method, headers)
+    else:
+        dispatch_error(socket, method, headers)
+
     socket.close()
     read_list.remove(socket)
 
