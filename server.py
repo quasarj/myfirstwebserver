@@ -33,12 +33,17 @@ def dispatch_error(socket, method, headers):
 def dispatch_get(socket, method, headers):
     if b'favicon' in method:
         print("Rejecting request for a favicon")
-        dispatch_error()
+        dispatch_error(socket, method, headers)
         return
 
     _, resource, *rest = method.split()
 
     print(resource)
+    socket.send(generate_headers())
+    socket.send(b"<h1>My First Webserver</h1>")
+    socket.send(b"<p>Resource requested: ")
+    socket.send(resource)
+    socket.send(b"</p>")
 
 
 def test(socket, headers):
